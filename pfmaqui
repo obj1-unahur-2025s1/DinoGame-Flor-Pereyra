@@ -140,3 +140,626 @@ No olvides la distinción entre var (estado que cambia) y const (valor fijo).
 Utiliza nombres claros para tus objetos, variables y métodos.
 Escribe tests a medida que avanzas. Esto es crucial en Wollok y te asegura que cada pequeña parte funciona antes de juntar todo.
 Si tienes alguna duda específica al escribir el código o te atascas en un punto, ¡comparte el código y el problema y lo revisamos juntos! ¡Ánimo con el ejercicio!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ===================================================================
+// PARTE 1: Máquinas interactivas y Jugadores
+// ===================================================================
+
+// Objeto Base para las Máquinas
+object MaquinaBase {
+  const property añoFabricacion // Define el año de fabricación
+  var property nivelBateria = 100 // Nivel inicial de batería
+  var property cantidadUsos = 0 // Contador de usos para la parte 3
+
+  // Query para saber si es vintage
+  method vintage() = self.añoFabricacion < 2000
+
+  // Método abstracto que cada máquina debe implementar
+  method puedeJugar(unJugador) {
+    error("Las subclases de MaquinaBase deben implementar el método puedeJugar")
+  }
+
+  // Método para jugar en la máquina (se sobrescribe en cada tipo)
+  method jugar(unJugador, unArcade) { // unArcade se pasa para interactuar con él (ej: puntuacion)
+    if (!self.puedeJugar(unJugador)) {
+      error("El jugador no puede jugar en esta máquina: " + unJugador.name() + " -> " + self.name())
+    }
+    self.cantidadUsos = self.cantidadUsos + 1 // Incrementa el contador de usos
+    // La lógica específica de juego (reducción de batería, efectos en el jugador/arcade) va en las subclases
+  }
+
+  // Método para cargar la máquina (se sobrescribe en cada tipo)
+  method cargar(horas) {
+     error("Las subclases de MaquinaBase deben implementar el método cargar")
+  }
+
+  // Método auxiliar para sumar batería sin exceder 100
+  method aumentarBateria(cantidad) {
+      self.nivelBateria = (self.nivelBateria + cantidad).min(100)
+  }
+}
+
+// Realidad Virtual Zombie Attack
+object RealidadVirtualZombieAttack inherits MaquinaBase {
+  const añoFabricacion = 1989
+
+  override method puedeJugar(unJugador) = unJugador.experiencia() >= 5
+
+  override method jugar(unJugador, unArcade) {
+    super(unJugador, unArcade) // Llama al comportamiento base (incrementar usos, chequear puedeJugar)
+    self.nivelBateria = self.nivelBateria - 30 // Consume batería
+    // Aumenta la puntuación del arcade según la experiencia del jugador
+    const puntosGanados = if (unJugador.experiencia() < 7) 15 else 25
+    unArcade.aumentarPuntuacion(puntosGanados)
+  }
+
+  override method cargar(horas) {
+    self.aumentarBateria(40 * horas) // Carga 40 por hora
+  }
+}
+
+// Simulador de Vuelo Espacial
+object SimuladorVueloEspacial inherits MaquinaBase {
+  const añoFabricacion = 1995
+  var property naveSeleccionada = "combate" // Valor por defecto
+
+  // Query para saber la dificultad según la nave seleccionada
+  method dificultad() = if (self.naveSeleccionada == "exploracion") "facil" else "dificil"
+
+  override method puedeJugar(unJugador) = unJugador.reflejos >= 3
+
+  override method jugar(unJugador, unArcade) {
+    super(unJugador, unArcade) // Llama al comportamiento base
+    self.nivelBateria = self.nivelBateria - 50 // Consume batería
+    unJugador.reflejos = unJugador.reflejos + 1 // Mejora reflejos del jugador
+  }
+
+  override method cargar(horas) {
+    self.aumentarBateria(50 * horas) // Carga 50 por hora
+  }
+}
+
+// Cabina de Sala de Escape
+object CabinaSalaEscape inherits MaquinaBase {
+  const añoFabricacion = 2018
+  var property pistasAcomodadas = true // Estado inicial de las pistas
+
+  // Sobrescribe nivelBateria para que siempre sea 100 (no tiene batería variable)
+  override method nivelBateria() = 100
+  override method nivelBateria(nuevoNivel) {
+      // No hace nada al intentar setear la batería, siempre es 100
+  }
+
+  override method puedeJugar(unJugador) = true // No hay condición para jugar
+
+  override method jugar(unJugador, unArcade) {
+    super(unJugador, unArcade) // Llama al comportamiento base
+    unJugador.inteligencia = unJugador.inteligencia + 1 // Mejora inteligencia del jugador
+    self.pistasAcomodadas = false // Desacomoda las pistas
+  }
+
+  // Sobrescribe cargar para que no haga nada (siempre está cargada)
+  override method cargar(horas) {
+    // No hace nada
+  }
+
+  // Método para "acomodar" las pistas (extra al ejercicio, útil para tests o juego)
+  method acomodarPistas() {
+      self.pistasAcomodadas = true
+  }
+}
+
+// Objeto Base para los Jugadores
+object JugadorBase {
+  const property name // Para identificar al jugador en tests/errores
+  var property inteligencia
+  var property reflejos
+  var property ultimoJuegoJugado // Para saber cuál fue el último juego (útil para Dana)
+
+  // Query para calcular la experiencia
+  method experiencia() = (self.inteligencia + self.reflejos) / 2.0
+
+  // Método abstracto que cada jugador debe implementar para saber si está contento
+  method contento(unArcade) { // Se le pasa el arcade por si lo necesita (como Zoe)
+    error("Las subclases de JugadorBase deben implementar el método contento")
+  }
+
+  // Método para que el jugador interactúe con una máquina a través del arcade
+  method jugar(unaMaquina, unArcade) {
+      unArcade.jugar(self, unaMaquina) // Le pide al arcade que gestione el juego
+      self.ultimoJuegoJugado = unaMaquina // Registra el último juego
+  }
+}
+
+// Milo
+object Milo inherits JugadorBase {
+  const name = "Milo"
+  var inteligencia = 2
+  var reflejos = 3
+
+  override method contento(unArcade) = true // Siempre está contento
+
+  // Método específico de Milo para saber si tiene ganas de jugar al Simulador
+  method ganasDeJugarSimulador(simulador) = simulador.dificultad() == "facil"
+}
+
+// Dana
+object Dana inherits JugadorBase {
+  const name = "Dana"
+  var inteligencia = 5
+  var reflejos = 1
+
+  // Está contenta si el último juego fue la Sala de Escape
+  override method contento(unArcade) = self.ultimoJuegoJugado == salaEscape
+}
+
+// Zoe
+object Zoe inherits JugadorBase {
+  const name = "Zoe"
+  var inteligencia = 5
+  var reflejos = 5
+
+  // Está contenta si puede jugar a todas las máquinas del arcade
+  override method contento(unArcade) = unArcade.puedeJugarATodasLasMaquinas(self)
+
+  // Métodos para mejorar a otros jugadores
+  method mejorarInteligencia(otroJugador) { otroJugador.inteligencia = otroJugador.inteligencia + 1 }
+  method mejorarReflejos(otroJugador) { otroJugador.reflejos = otroJugador.reflejos + 1 }
+}
+
+// Instancias de las máquinas para usar en el Arcade
+const rvza = new RealidadVirtualZombieAttack(añoFabricacion = 1989)
+const simuladorVueloEspacial = new SimuladorVueloEspacial(añoFabricacion = 1995)
+const salaEscape = new CabinaSalaEscape(añoFabricacion = 2018)
+
+
+// ===================================================================
+// TESTS - PARTE 1
+// ===================================================================
+
+// Necesitamos un arcade aunque sea vacío para la interaccion de los jugadores con las maquinas
+// y para el test de Zoe. Lo definimos aca temporalmente para los tests de la parte 1
+object ArcadeDummy for "Tests Parte 1" {
+    var maquinas = #[rvza, simuladorVueloEspacial, salaEscape] // Lista para Zoe
+    var jugadoresAdentro = #[]
+    var puntuacionTotal = 0
+
+    method aumentarPuntuacion(cantidad) { self.puntuacionTotal += cantidad }
+    method puedeJugarATodasLasMaquinas(unJugador) = self.maquinas.all({ m => m.puedeJugar(unJugador) })
+    method jugar(jugador, maquina) { maquina.jugar(jugador, self) } // Permite al jugador jugar una maquina a traves del dummy arcade
+    method maquinasConPocaEnergia() = self.maquinas.filter({ m => !(m is CabinaSalaEscape) and m.nivelBateria < 50 })
+     method cargarTodasLasMaquinas() {
+         self.maquinas.forEach({ m => if (!(m is CabinaSalaEscape)) m.cargar(24) })
+     }
+}
+
+test "Zoe puede jugar RVZA, Milo y Dana no" {
+  assert.true(rvza.puedeJugar(zoe))
+  assert.false(rvza.puedeJugar(milo))
+  assert.false(rvza.puedeJugar(dana))
+}
+
+test "Luego de jugar Sala de Escape, las pistas no están acomodadas" {
+  salaEscape.acomodarPistas() // Asegurarse de que empiecen acomodadas para el test
+  assert.true(salaEscape.pistasAcomodadas)
+
+  ArcadeDummy.jugar(zoe, salaEscape) // Zoe juega en la sala de escape (cualquier jugador sirve)
+
+  assert.false(salaEscape.pistasAcomodadas)
+}
+
+test "Bateria de Simulador queda en 50 luego de jugar y vuelve a 100 luego de cargar" {
+  // Asegurarse de que la batería esté llena al inicio del test
+  simuladorVueloEspacial.nivelBateria = 100
+
+  ArcadeDummy.jugar(zoe, simuladorVueloEspacial) // Zoe juega en el simulador (cumple requisitos)
+  assert.equals(50, simuladorVueloEspacial.nivelBateria) // 100 - 50 = 50
+
+  simuladorVueloEspacial.cargar(1) // Cargar 1 hora
+  assert.equals(100, simuladorVueloEspacial.nivelBateria) // 50 + 50 = 100
+}
+
+test "Milo tiene ganas de jugar Simulador si la nave es exploracion" {
+  simuladorVueloEspacial.naveSeleccionada = "exploracion"
+  assert.true(milo.ganasDeJugarSimulador(simuladorVueloEspacial))
+
+  simuladorVueloEspacial.naveSeleccionada = "combate"
+  assert.false(milo.ganasDeJugarSimulador(simuladorVueloEspacial))
+
+  simuladorVueloEspacial.naveSeleccionada = "ultra velocidad"
+  assert.false(milo.ganasDeJugarSimulador(simuladorVueloEspacial))
+}
+
+
+// ===================================================================
+// PARTE 2: Administración del Arcade
+// ===================================================================
+
+// El Objeto Arcade real
+object PixelArcade {
+  var maquinas = #[rvza, simuladorVueloEspacial, salaEscape] // Inicializado con las máquinas
+  var jugadoresAdentro = #[] // Lista de jugadores actualmente en el arcade
+  var property puntuacionTotal = 0
+
+  // Registrar la entrada de un jugador
+  method registrarEntrada(unJugador) {
+    jugadoresAdentro.add(unJugador)
+  }
+
+  // Registrar la salida de un jugador
+  method registrarSalida(unJugador) {
+    jugadoresAdentro.remove(unJugador)
+  }
+
+  // Saber si el arcade está lleno (3 o más personas)
+  method lleno() = jugadoresAdentro.size() >= 3
+
+  // Verificar si el arcade está vacío
+  method vacio() = jugadoresAdentro.isEmpty()
+
+  // Método para que un jugador juegue en una máquina (gestionado por el arcade)
+  method jugar(unJugador, unaMaquina) {
+      if (self.jugadoresAdentro.contains(unJugador)) {
+          unaMaquina.jugar(unJugador, self) // La máquina ejecuta su lógica, interactuando con el arcade
+      } else {
+          error(unJugador.name() + " no está en el arcade para poder jugar.")
+      }
+  }
+
+  // Aumentar la puntuación total del arcade (llamado por las máquinas)
+  method aumentarPuntuacion(cantidad) {
+      self.puntuacionTotal = self.puntuacionTotal + cantidad
+  }
+
+  // Método para que Zoe u otro jugador chequee si puede jugar a todas las máquinas
+  method puedeJugarATodasLasMaquinas(unJugador) = self.maquinas.all({ m => m.puedeJugar(unJugador) })
+
+   // Método para cerrar el local (Parte 3, pero lo incluimos aquí)
+   method cerrarLocal() {
+       self.jugadoresAdentro.clear() // Vacía el local
+       self.maquinas.forEach({ m =>
+           if (!(m is CabinaSalaEscape)) { // Las máquinas con batería variable se cargan
+               m.cargar(24) // Cargar un tiempo suficiente para llegar a 100
+               m.cantidadUsos = 0 // Resetear usos al cerrar (esto no estaba explicitado, pero es común en ejercicios)
+           } else {
+               m.cantidadUsos = 0 // Resetear usos de SalaEscape también
+           }
+       })
+       self.puntuacionTotal = 0 // Resetear puntuación (opcional, no explicitado, pero común)
+   }
+
+    // Métodos de la Parte 3 (los incluimos aquí en el objeto principal)
+
+    // Máquinas que necesitan reparación
+    method maquinasQueNecesitanReparacion() =
+        self.maquinas.filter({ m =>
+            (m.vintage() and m.cantidadUsos > 10) or (!m.vintage() and m.cantidadUsos > 30)
+        })
+
+    // Máquina más nueva
+    method maquinaMasNueva() = self.maquinas.max({ m => m.añoFabricacion })
+
+    // Máquina más antigua
+    method maquinaMasAntigua() = self.maquinas.min({ m => m.añoFabricacion })
+
+    // Cantidad de máquinas vintage
+    method cantidadMaquinasVintage() = self.maquinas.count({ m => m.vintage() })
+
+    // Máquinas con menos del 50% de energía
+    method maquinasConPocaEnergia() =
+        self.maquinas.filter({ m =>
+             !(m is CabinaSalaEscape) and m.nivelBateria < 50
+        })
+}
+
+
+// Instancias de los jugadores
+const milo = new Milo(inteligencia = 2, reflejos = 3)
+const dana = new Dana(inteligencia = 5, reflejos = 1)
+const zoe = new Zoe(inteligencia = 5, reflejos = 5)
+
+
+// ===================================================================
+// TESTS - PARTE 2
+// ===================================================================
+
+test "Arcade empieza vacío" {
+  const arcade = new PixelArcade()
+  assert.true(arcade.vacio())
+  assert.false(arcade.lleno())
+}
+
+test "Registrar entrada y salida de jugadores" {
+  const arcade = new PixelArcade()
+  arcade.registrarEntrada(milo)
+  assert.false(arcade.vacio())
+  assert.equals(1, arcade.jugadoresAdentro.size())
+
+  arcade.registrarEntrada(dana)
+   assert.equals(2, arcade.jugadoresAdentro.size())
+
+  arcade.registrarSalida(milo)
+  assert.equals(1, arcade.jugadoresAdentro.size())
+  assert.false(arcade.jugadoresAdentro.contains(milo))
+  assert.true(arcade.jugadoresAdentro.contains(dana))
+
+  arcade.registrarSalida(dana)
+  assert.true(arcade.vacio())
+}
+
+test "Arcade se llena con 3 jugadores" {
+  const arcade = new PixelArcade()
+  assert.false(arcade.lleno())
+
+  arcade.registrarEntrada(milo)
+  assert.false(arcade.lleno())
+
+  arcade.registrarEntrada(dana)
+  assert.false(arcade.lleno())
+
+  arcade.registrarEntrada(zoe)
+  assert.true(arcade.lleno())
+
+  arcade.registrarSalida(milo)
+  assert.false(arcade.lleno())
+}
+
+test "Puntuacion aumenta al jugar RVZA con jugadores de diferente experiencia" {
+    const arcade = new PixelArcade()
+    arcade.registrarEntrada(zoe) // Zoe exp = 5. Puntos = 25
+    arcade.registrarEntrada(dana) // Dana exp = 3. Puntos = 15
+    arcade.registrarEntrada(milo) // Milo exp = 2. No puede jugar RVZA
+
+    assert.equals(0, arcade.puntuacionTotal)
+
+    arcade.jugar(zoe, rvza) // Zoe puede jugar
+    assert.equals(25, arcade.puntuacionTotal)
+
+    arcade.jugar(dana, rvza) // Dana no puede jugar (experiencia < 5) -> Esto debería dar error según puedeJugar
+    // Para este test, mejor usar jugadores que sí puedan jugar
+    // Corregimos el test usando solo Zoe y un jugador con exp 6
+    const jugadorExp6 = new JugadorBase(name = "Exp6", inteligencia = 6, reflejos = 6) // exp = 6
+    arcade.registrarEntrada(jugadorExp6)
+
+    arcade.jugar(zoe, rvza) // Zoe exp 5 -> 25 puntos. Total 25.
+    assert.equals(25, arcade.puntuacionTotal)
+
+    arcade.jugar(jugadorExp6, rvza) // Exp6 exp 6 -> 15 puntos. Total 25 + 15 = 40
+    assert.equals(40, arcade.puntuacionTotal)
+
+    const jugadorExp8 = new JugadorBase(name = "Exp8", inteligencia = 8, reflejos = 8) // exp = 8
+     arcade.registrarEntrada(jugadorExp8)
+     arcade.jugar(jugadorExp8, rvza) // Exp8 exp 8 -> 25 puntos. Total 40 + 25 = 65
+     assert.equals(65, arcade.puntuacionTotal)
+}
+
+test "Dana esta contenta si ultimo juego fue Sala de Escape" {
+    const arcade = new PixelArcade()
+    arcade.registrarEntrada(dana)
+    arcade.registrarEntrada(zoe) // Necesitamos otro jugador para jugar otras máquinas
+
+    assert.false(dana.contento(arcade)) // Aun no jugó
+
+    arcade.jugar(zoe, rvza) // Zoe juega RVZA. Dana no ha jugado.
+    assert.false(dana.contento(arcade))
+
+    arcade.jugar(dana, salaEscape) // Dana juega Sala Escape
+    assert.true(dana.contento(arcade))
+
+    arcade.jugar(dana, simuladorVueloEspacial) // Dana juega Simulador
+    assert.false(dana.contento(arcade)) // Ya no está contenta
+}
+
+test "Zoe esta contenta si puede jugar a todas las maquinas del arcade" {
+    const arcade = new PixelArcade()
+    arcade.registrarEntrada(zoe) // Agregar Zoe al arcade
+
+    // Por defecto, Zoe (exp 5, reflejos 5) puede jugar RVZA (exp >= 5) y Simulador (reflejos >= 3) y SalaEscape (siempre).
+    assert.true(zoe.contento(arcade))
+
+    // Si agregamos una máquina que Zoe NO pueda jugar
+    const maquinaDificil = new RealidadVirtualZombieAttack(añoFabricacion = 2020) // Vintage=false
+    maquinaDificil.method puedeJugar(j) = j.experiencia() >= 10 // Zoe no puede jugar aqui
+    arcade.maquinas.add(maquinaDificil)
+
+    assert.false(zoe.contento(arcade)) // Ahora Zoe no puede jugar a TODAS
+}
+
+test "Zoe puede mejorar inteligencia o reflejos de otro jugador" {
+    const jugadorA = new JugadorBase(name="A", inteligencia=1, reflejos=1)
+    const jugadorB = new JugadorBase(name="B", inteligencia=1, reflejos=1)
+
+    zoe.mejorarInteligencia(jugadorA)
+    assert.equals(2, jugadorA.inteligencia)
+    assert.equals(1, jugadorA.reflejos)
+
+    zoe.mejorarReflejos(jugadorB)
+    assert.equals(1, jugadorB.inteligencia)
+    assert.equals(2, jugadorB.reflejos)
+}
+
+// ===================================================================
+// TESTS - PARTE 3
+// ===================================================================
+
+test "Maquinas que necesitan reparacion segun usos y si son vintage" {
+    const arcade = new PixelArcade() // Reinicia el arcade para el test
+
+    // Usos iniciales
+    rvza.cantidadUsos = 0 // Vintage
+    simuladorVueloEspacial.cantidadUsos = 0 // Vintage
+    salaEscape.cantidadUsos = 0 // No Vintage
+
+    // Simular usos
+    rvza.cantidadUsos = 11 // Vintage > 10 -> Necesita
+    simuladorVueloEspacial.cantidadUsos = 5 // Vintage <= 10 -> No Necesita
+    salaEscape.cantidadUsos = 31 // No Vintage > 30 -> Necesita
+
+    const maquinasEnReparacion = arcade.maquinasQueNecesitanReparacion()
+
+    assert.equals(2, maquinasEnReparacion.size())
+    assert.true(maquinasEnReparacion.contains(rvza))
+    assert.true(maquinasEnReparacion.contains(salaEscape))
+    assert.false(maquinasEnReparacion.contains(simuladorVueloEspacial))
+}
+
+test "Encontrar maquina mas nueva y mas antigua" {
+    const arcade = new PixelArcade()
+    // rvza: 1989, simulador: 1995, salaEscape: 2018
+
+    assert.equals(salaEscape, arcade.maquinaMasNueva())
+    assert.equals(rvza, arcade.maquinaMasAntigua())
+
+    // Bonus: Agregar una maquina nueva para probar
+    const maquinaNueva = new RealidadVirtualZombieAttack(añoFabricacion = 2025)
+    arcade.maquinas.add(maquinaNueva)
+    assert.equals(maquinaNueva, arcade.maquinaMasNueva())
+
+     // Bonus: Agregar una maquina antigua para probar
+    const maquinaAntigua = new RealidadVirtualZombieAttack(añoFabricacion = 1985)
+    arcade.maquinas.add(maquinaAntigua)
+    assert.equals(maquinaAntigua, arcade.maquinaMasAntigua())
+}
+
+test "Contar cantidad de maquinas vintage" {
+     const arcade = new PixelArcade()
+     // rvza: 1989 (vintage), simulador: 1995 (vintage), salaEscape: 2018 (no vintage)
+
+     assert.equals(2, arcade.cantidadMaquinasVintage())
+
+     // Bonus: Agregar maquinas para probar
+     const maquinaNoVintage = new CabinaSalaEscape(añoFabricacion = 2020) // No vintage
+     const otraMaquinaVintage = new RealidadVirtualZombieAttack(añoFabricacion = 1999) // Vintage
+     arcade.maquinas.add(maquinaNoVintage)
+     arcade.maquinas.add(otraMaquinaVintage)
+
+     assert.equals(3, arcade.cantidadMaquinasVintage())
+}
+
+test "Identificar maquinas con poca energia (menos de 50%)" {
+     const arcade = new PixelArcade()
+
+     // Asegurarse de que empiecen con batería llena para el test
+     rvza.nivelBateria = 100
+     simuladorVueloEspacial.nivelBateria = 100
+     // salaEscape siempre es 100
+
+     assert.true(arcade.maquinasConPocaEnergia().isEmpty()) // Ninguna tiene poca energía
+
+     // Bajar batería
+     rvza.nivelBateria = 49 // < 50 -> Poca energia
+     simuladorVueloEspacial.nivelBateria = 50 // >= 50 -> No poca energia
+     // salaEscape sigue en 100
+
+     const maquinasConPoca = arcade.maquinasConPocaEnergia()
+
+     assert.equals(1, maquinasConPoca.size())
+     assert.true(maquinasConPoca.contains(rvza))
+     assert.false(maquinasConPoca.contains(simuladorVueloEspacial))
+     assert.false(maquinasConPoca.contains(salaEscape)) // La sala de escape nunca debería estar en esta lista
+
+     // Bajar más batería
+     simuladorVueloEspacial.nivelBateria = 40 // < 50 -> Ahora también poca energia
+     const otrasMaquinasConPoca = arcade.maquinasConPocaEnergia()
+     assert.equals(2, otrasMaquinasConPoca.size())
+     assert.true(otrasMaquinasConPoca.contains(rvza))
+     assert.true(otrasMaquinasConPoca.contains(simuladorVueloEspacial))
+}
+
+test "Cerrar local: vacia jugadores y recarga maquinas" {
+    const arcade = new PixelArcade()
+    arcade.registrarEntrada(milo)
+    arcade.registrarEntrada(dana)
+    arcade.registrarEntrada(zoe)
+
+    // Bajar la batería de las máquinas que tienen
+    rvza.nivelBateria = 10
+    simuladorVueloEspacial.nivelBateria = 20
+    // salaEscape siempre está en 100
+
+    // Registrar usos para ver que se resetean
+    rvza.cantidadUsos = 5
+    simuladorVueloEspacial.cantidadUsos = 15
+    salaEscape.cantidadUsos = 25
+
+    arcade.cerrarLocal()
+
+    assert.true(arcade.vacio()) // Jugadores afuera
+    assert.equals(0, arcade.jugadoresAdentro.size())
+
+    // Baterías recargadas
+    assert.equals(100, rvza.nivelBateria)
+    assert.equals(100, simuladorVueloEspacial.nivelBateria)
+    assert.equals(100, salaEscape.nivelBateria) // Sigue en 100
+
+    // Usos reseteados
+    assert.equals(0, rvza.cantidadUsos)
+    assert.equals(0, simuladorVueloEspacial.cantidadUsos)
+    assert.equals(0, salaEscape.cantidadUsos)
+
+    // Puntuación reseteada (si se incluyó en cerrarLocal)
+    assert.equals(0, arcade.puntuacionTotal)
+}
+
+// ===================================================================
+// BONUS - Añadir y verificar
+// ===================================================================
+
+// Nuevo Jugador de ejemplo
+object JugadorNuevo extends JugadorBase {
+    const name = "Nuevo"
+    var inteligencia = 7
+    var reflejos = 7
+
+    // Está contento si su experiencia es alta (ejemplo)
+    override method contento(unArcade) = self.experiencia() >= 7
+}
+
+// Nueva Máquina de ejemplo
+object MaquinaNueva extends MaquinaBase {
+    const añoFabricacion = 2022
+    var property dificultadPuzzle = 5 // Nueva propiedad
+
+    override method puedeJugar(unJugador) = unJugador.inteligencia >= 6 // Condición nueva
+
+    override method jugar(unJugador, unArcade) {
+        super(unJugador, unArcade)
+        self.nivelBateria -= 10 // Consume poca batería
+        unJugador.inteligencia += self.dificultadPuzzle // Mejora inteligencia según dificultad
+        // No afecta la puntuación del arcade
+    }
+
+     override method cargar(horas) {
+        self.aumentarBateria(10 * horas) // Carga lento
+     }
+}
+
+// Para verificar que todo siga funcionando con las nuevas incorporaciones,
+// simplemente puedes añadir instancias de JugadorNuevo y MaquinaNueva
+// a las listas de jugadores y maquinas del PixelArcade y ejecutar
+// todos los tests nuevamente. Si todos pasan, tu diseño es robusto.
+
+// Ejemplo de cómo añadir la nueva máquina a un arcade:
+// const miArcadeExtend = new PixelArcade()
+// const maquinaExtra = new MaquinaNueva(dificultadPuzzle = 7)
+// miArcadeExtend.maquinas.add(maquinaExtra)
+// Ahora puedes probar los métodos de miArcadeExtend como antes.
+
+// Ejemplo de cómo añadir el nuevo jugador a un arcade:
+// const miArcadeConNuevoJugador = new PixelArcade()
+// const nuevoVisitante = new JugadorNuevo()
+// miArcadeConNuevoJugador.registrarEntrada(nuevoVisitante)
+// Ahora puedes probar los métodos de miArcadeConNuevoJugador con el nuevoVisitante.
