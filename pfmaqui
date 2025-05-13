@@ -1,0 +1,52 @@
+object MaquinaBase {
+  const añoFabricacion // Ejemplo: const añoFabricacion = 1989
+  var nivelBateria = 100 // Empiezan con 100
+  var cantidadUsos = 0 // Para la parte 3
+
+  method vintage() = self.añoFabricacion < 2000
+
+  method puedeJugar(unJugador) {
+    // Este método es abstracto en la base, cada máquina lo implementa
+    error("Las subclases de Maquina deben implementar puedeJugar")
+  }
+
+  method jugar(unJugador, unArcade) { // unArcade lo necesitaremos para la parte 2
+    // Comportamiento común (reducir batería, incrementar usos), luego comportamiento específico
+    if (!self.puedeJugar(unJugador)) {
+      error("El jugador no cumple los requisitos para jugar esta máquina")
+    }
+    // La reducción de batería varía, o no existe (Sala Escape).
+    // Lo manejaremos en cada tipo de máquina.
+    self.cantidadUsos = self.cantidadUsos + 1
+    // Aquí iría el comportamiento específico de cada máquina
+  }
+
+  method cargar(horas) {
+    // Comportamiento común (aumentar batería hasta 100), pero el incremento varía
+    error("Las subclases de Maquina deben implementar cargar")
+  }
+
+  // Método auxiliar para manejar la carga sin exceder 100
+  method aumentarBateria(cantidad) {
+      self.nivelBateria = (self.nivelBateria + cantidad).min(100)
+  }
+}
+
+object JugadorBase {
+  var inteligencia
+  var reflejos
+  var ultimoJuegoJugado // Para Dana
+
+  // query es para valores calculados que no tienen efectos secundarios
+  method experiencia() = (self.inteligencia + self.reflejos) / 2.0
+
+  method contento() {
+    // Este método es abstracto en la base, cada jugador lo implementa
+    error("Las subclases de Jugador deben implementar contento")
+  }
+
+  method jugar(unaMaquina, unArcade) { // unArcade lo necesitaremos para la parte 2
+      unaMaquina.jugar(self, unArcade) // El jugador le pide a la máquina que se use
+      self.ultimoJuegoJugado = unaMaquina // Registrar para Dana
+  }
+}
