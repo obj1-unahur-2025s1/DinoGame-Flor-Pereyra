@@ -50,3 +50,93 @@ object JugadorBase {
       self.ultimoJuegoJugado = unaMaquina // Registrar para Dana
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Máquinas específicas:
+
+Crea object RealidadVirtualZombieAttack inherits MaquinaBase { ... }. Define su añoFabricacion, implementa puedeJugar, jugar (reduciendo batería, llamando a unArcade.aumentarPuntuacion(...) y manejando la lógica de puntuación según la experiencia del jugador), e implementa cargar (usando aumentarBateria).
+Crea object SimuladorVueloEspacial inherits MaquinaBase { ... }. Define su añoFabricacion, implementa puedeJugar, jugar (reduciendo batería y mejorando reflejos del jugador), e implementa cargar. Agrega var naveSeleccionada y el método dificultad.
+Crea object CabinaSalaEscape inherits MaquinaBase { ... }. Define su añoFabricacion. Nota: no hereda directamente de MaquinaBase si no tiene batería variable. Podrías tener una MaquinaSinBateriaBase o simplemente no tener las variables/métodos de batería y manejarlos aparte (quizás redefiniendo nivelBateria como una query que siempre es 100 y no implementando cargar o implementándolo vacío). Agrega var pistasAcomodadas = true y redefínelo en jugar para que se vuelva false. puedeJugar siempre retorna true.
+Jugadores específicos:
+
+Crea object Milo inherits JugadorBase { ... }. Define inteligencia y reflejos. contento siempre retorna true. Agrega el método ganasDeJugarSimulador(simulador).
+Crea object Dana inherits JugadorBase { ... }. Define inteligencia y reflejos. Implementa contento basándose en ultimoJuegoJugado.
+Crea object Zoe inherits JugadorBase { ... }. Define inteligencia y reflejos. Implementa contento. Aquí necesitarás acceso a todas las máquinas del arcade. Podrías recibir la lista de máquinas como argumento en el método contento(listaDeMaquinas) o, mejor aún, el método estará en el Arcade y este chequeará si Zoe puede jugar todas sus máquinas. Implementa mejorarInteligencia(otroJugador) y mejorarReflejos(otroJugador).
+Tests (Parte 1):
+
+Crea objetos de cada máquina y jugador.
+Prueba maquina.puedeJugar(jugador) para Zoe, Milo y Dana en RealidadVirtualZombieAttack.
+Juega con la CabinaSalaEscape y comprueba que pistasAcomodadas sea false.
+Juega con el SimuladorVueloEspacial (asegúrate de que el jugador pueda). Comprueba que la batería baje a 50. Luego, cárgala 1 hora y comprueba que vuelva a 100.
+Prueba Milo.ganasDeJugarSimulador(simulador) configurando simulador.naveSeleccionada a "exploracion" y luego a otra cosa.
+Parte 2: Administración del Arcade
+
+Aquí introduces el contenedor principal.
+
+Objeto Arcade:
+
+Crea object Arcade { ... }.
+Agrega var maquinas = [] (inicialízala con instancias de las 4 máquinas).
+Agrega var jugadoresAdentro = [].
+Agrega var puntuacionTotal = 0.
+Implementa registrarEntrada(jugador): agrega a jugadoresAdentro.
+Implementa registrarSalida(jugador): remueve de jugadoresAdentro.
+Implementa lleno(): usa jugadoresAdentro.size() >= 3.
+Implementa vacio(): usa jugadoresAdentro.isEmpty().
+Agrega aumentarPuntuacion(cantidad) que será llamado por RealidadVirtualZombieAttack.
+Agrega puedeJugarATodasLasMaquinas(jugador): usa maquinas.all({ m => m.puedeJugar(jugador) }). Zoe usará este método (por ejemplo, su método contento podría llamar a arcade.puedeJugarATodasLasMaquinas(self) si le pasas el arcade).
+Tests (Parte 2):
+
+Crea un objeto arcade.
+Prueba registrarEntrada y registrarSalida con varios jugadores.
+Prueba lleno() y vacio() después de registrar entradas/salidas para verificar los distintos estados.
+Parte 3: Arcade Potenciado
+
+Añades más lógica al objeto Arcade.
+
+Más comportamiento en Arcade:
+
+Implementa maquinasQueNecesitanReparacion(): usa maquinas.filter({ m => (m.vintage() and m.cantidadUsos > 10) or (!m.vintage() and m.cantidadUsos > 30) }). Asegúrate de que las máquinas tengan cantidadUsos.
+Implementa maquinaMasNueva(): usa maquinas.max({ m => m.añoFabricacion }).
+Implementa maquinaMasAntigua(): usa maquinas.min({ m => m.añoFabricacion }).
+Implementa cantidadMaquinasVintage(): usa maquinas.count({ m => m.vintage() }).
+Implementa maquinasConPocaEnergia(): usa maquinas.filter({ m => m.nivelBateria < 50 }). Ojo: la Sala de Escape no tiene batería variable. Puedes filtrarla primero: maquinas.filter({ m => !(m is CabinaSalaEscape) and m.nivelBateria < 50 }).
+Implementa cerrarLocal(): jugadoresAdentro.clear(). Para las máquinas: maquinas.forEach({ m => m.cargar(24) }) (o un número grande de horas para asegurar que lleguen a 100, o simplemente podrías setear m.nivelBateria = 100 si tu diseño lo permite, pero el ejercicio pide "recargar todas las máquinas al máximo", que sugiere usar el método cargar). De nuevo, la Sala Escape es una excepción. Podrías hacer maquinas.forEach({ m => if (!(m is CabinaSalaEscape)) m.cargar(24) }).
+Tests (Parte 3):
+
+Crea un objeto arcade.
+Simula usos de las máquinas jugando varias veces para que algunas necesiten reparación y otras no, y para que algunas tengan poca batería.
+Prueba maquinasQueNecesitanReparacion().
+Prueba maquinaMasNueva() y maquinaMasAntigua().
+Prueba cantidadMaquinasVintage().
+Prueba maquinasConPocaEnergia().
+Registra jugadores, simula usos y luego prueba cerrarLocal(): comprueba que jugadoresAdentro esté vacío y que las baterías de las máquinas (que sí tienen) estén en 100.
+Bonus:
+
+Añadir nuevo jugador: Crea un nuevo objeto Jugador (por ejemplo, object Leo inherits JugadorBase { ... }) con sus propias características y lógica de contento.
+Añadir nueva máquina: Crea un nuevo objeto Maquina (por ejemplo, object Pinball inherits MaquinaBase { ... }) con su año, lógica de batería, puedeJugar, jugar, etc.
+Verificar que todo funcione:
+Agrega instancias de tu nuevo jugador y tu nueva máquina a las listas del arcade (o crea un nuevo arcade con ellas).
+Ejecuta los tests de las partes 1, 2 y 3 nuevamente. ¿maquinaMasNueva sigue funcionando? ¿cantidadMaquinasVintage? ¿Los tests de jugadores (contento, etc.) con el nuevo jugador? ¿Los tests de máquinas con la nueva máquina? Esto te ayuda a verificar que tu diseño es extensible.
+Consejos Adicionales:
+
+Empieza por la Parte 1. Define los objetos Maquina y Jugador base, luego los específicos. Haz que respondan a los mensajes clave (puedeJugar, jugar, cargar, contento, etc.). Prueba estos objetos individualmente primero.
+Luego pasa a la Parte 2 e introduce el Arcade como contenedor. Haz que los jugadores interactúen con las máquinas a través del Arcade (esto simplifica cosas como la puntuación global y el chequeo de Zoe).
+Finalmente, aborda la Parte 3, añadiendo los métodos de administración al Arcade.
+No olvides la distinción entre var (estado que cambia) y const (valor fijo).
+Utiliza nombres claros para tus objetos, variables y métodos.
+Escribe tests a medida que avanzas. Esto es crucial en Wollok y te asegura que cada pequeña parte funciona antes de juntar todo.
+Si tienes alguna duda específica al escribir el código o te atascas en un punto, ¡comparte el código y el problema y lo revisamos juntos! ¡Ánimo con el ejercicio!
